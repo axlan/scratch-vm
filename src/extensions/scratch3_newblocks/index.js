@@ -6,6 +6,8 @@ const formatMessage = require('format-message');
 const http = require('http')
 const log = require('../../util/log');
 
+const LED_HOST = '192.168.1.123';
+
 const SEGMENTS = {
     eagle: {
         start: 0,
@@ -21,14 +23,140 @@ const SEGMENTS = {
         start: 32,
         len: 16,
         id: 2
-    }
+    },
+    hole: {
+        start: 48,
+        len: 2,
+        id: 3
+    },
 };
+
+const EFFECTS = [
+    "Solid",
+    "Blink",
+    "Breathe",
+    "Wipe",
+    "Wipe Random",
+    "Random Colors",
+    "Sweep",
+    "Dynamic",
+    "Colorloop",
+    "Rainbow",
+    "Scan",
+    "Scan Dual",
+    "Fade",
+    "Theater",
+    "Theater Rainbow",
+    "Running",
+    "Saw",
+    "Twinkle",
+    "Dissolve",
+    "Dissolve Rnd",
+    "Sparkle",
+    "Sparkle Dark",
+    "Sparkle+",
+    "Strobe",
+    "Strobe Rainbow",
+    "Strobe Mega",
+    "Blink Rainbow",
+    "Android",
+    "Chase",
+    "Chase Random",
+    "Chase Rainbow",
+    "Chase Flash",
+    "Chase Flash Rnd",
+    "Rainbow Runner",
+    "Colorful",
+    "Traffic Light",
+    "Sweep Random",
+    "Running 2",
+    "Aurora",
+    "Stream",
+    "Scanner",
+    "Lighthouse",
+    "Fireworks",
+    "Rain",
+    "Tetrix",
+    "Fire Flicker",
+    "Gradient",
+    "Loading",
+    "Police",
+    "Police All",
+    "Two Dots",
+    "Two Areas",
+    "Circus",
+    "Halloween",
+    "Tri Chase",
+    "Tri Wipe",
+    "Tri Fade",
+    "Lightning",
+    "ICU",
+    "Multi Comet",
+    "Scanner Dual",
+    "Stream 2",
+    "Oscillate",
+    "Pride 2015",
+    "Juggle",
+    "Palette",
+    "Fire 2012",
+    "Colorwaves",
+    "Bpm",
+    "Fill Noise",
+    "Noise 1",
+    "Noise 2",
+    "Noise 3",
+    "Noise 4",
+    "Colortwinkles",
+    "Lake",
+    "Meteor",
+    "Meteor Smooth",
+    "Railway",
+    "Ripple",
+    "Twinklefox",
+    "Twinklecat",
+    "Halloween Eyes",
+    "Solid Pattern",
+    "Solid Pattern Tri",
+    "Spots",
+    "Spots Fade",
+    "Glitter",
+    "Candle",
+    "Fireworks Starburst",
+    "Fireworks 1D",
+    "Bouncing Balls",
+    "Sinelon",
+    "Sinelon Dual",
+    "Sinelon Rainbow",
+    "Popcorn",
+    "Drip",
+    "Plasma",
+    "Percent",
+    "Ripple Rainbow",
+    "Heartbeat",
+    "Pacifica",
+    "Candle Multi",
+    "Solid Glitter",
+    "Sunrise",
+    "Phased",
+    "Twinkleup",
+    "Noise Pal",
+    "Sine",
+    "Phased Noise",
+    "Flow",
+    "Chunchun",
+    "Dancing Shadows",
+    "Washing Machine",
+    "Candy Cane",
+    "Blends",
+    "TV Simulator",
+    "Dynamic Smooth"
+  ]
 
 function sendData(args) {
     const data = new TextEncoder().encode(JSON.stringify(args))
 
     const options = {
-        hostname: '192.168.1.123',
+        hostname: LED_HOST,
         port: 80,
         path: '/json/state',
         method: 'POST',
@@ -118,6 +246,17 @@ class Scratch3NewBlocks {
         return items;
     }
 
+    _initFxName() {
+        items = [];
+        for(var i=0; i<EFFECTS.length; i++) {
+            items.push({
+                text: EFFECTS[i],
+                value: i
+            });
+        }
+        return items;
+    }
+
     /**
      * When a pen-using Target is cloned, clone the pen state.
      * @param {Target} newTarget - the newly created target.
@@ -152,17 +291,27 @@ class Scratch3NewBlocks {
                     }
                 },
                 {
-                    opcode: 'ledsOff',
+                    opcode: 'allOff',
                     blockType: BlockType.COMMAND,
-                    text: 'turn LEDs off'
+                    text: 'turn all LEDs off'
                 },
                 {
-                    opcode: 'ledsOn',
+                    opcode: 'allOn',
                     blockType: BlockType.COMMAND,
-                    text: 'turn LEDs on'
+                    text: 'turn all LEDs on'
                 },
                 {
-                    opcode: 'setLedColor',
+                    opcode: 'segmentOff',
+                    blockType: BlockType.COMMAND,
+                    text: 'turn selected segment off'
+                },
+                {
+                    opcode: 'segmentOn',
+                    blockType: BlockType.COMMAND,
+                    text: 'turn selected segment on'
+                },
+                {
+                    opcode: 'setSegmentColor',
                     blockType: BlockType.COMMAND,
                     arguments: {
                         COLOR: {
@@ -191,11 +340,31 @@ class Scratch3NewBlocks {
                         description: 'select the LED segment to control'
                     }),
                 },
+                {
+                    opcode: 'selectLedEffect',
+                    blockType: BlockType.COMMAND,
+                    arguments: {
+                        FX_NAME: {
+                            type: ArgumentType.STRING,
+                            menu: 'fxName',
+                            defaultValue: EFFECTS[0]
+                        },
+                    },
+                    text: formatMessage({
+                        id: 'newblocks.selectLedFx',
+                        default: 'show the [FX_NAME] effect',
+                        description: 'select the effect for the LED segment'
+                    }),
+                },
             ],
             menus: {
                 segmentName: {
                     acceptReporters: true,
                     items: this._initSegmentName()
+                },
+                fxName: {
+                    acceptReporters: true,
+                    items: this._initFxName()
                 }
             }
         };
@@ -206,6 +375,18 @@ class Scratch3NewBlocks {
         log.log(text);
     }
 
+    _setSegParam(param, val, util) {
+        const target = util.target;
+        var state = this._getState(target);
+        data = {
+            "seg": [{
+              "id": SEGMENTS[state.segment].id,
+            }]	
+        };
+        data['seg'][0][param] = val
+        sendData(data);
+    }
+
     /**
      * The pen "set pen color to {color}" block sets the pen to a particular RGB color.
      * The transparency is reset to 0.
@@ -213,32 +394,35 @@ class Scratch3NewBlocks {
      *  @property {int} COLOR - the color to set, expressed as a 24-bit RGB value (0xRRGGBB).
      * @param {object} util - utility object provided by the runtime.
      */
-     setLedColor (args, util) {
-        const rgb = Cast.toRgbColorObject(args.COLOR);
-        const target = util.target;
-        var state = this._getState(target)
-        sendData({
-            "seg": [{
-              "id": SEGMENTS[state.segment].id,
-              "col": [	
-                [rgb.r, rgb.g, rgb.b]	
-              ],
-              "on": true
-            }]	
-        })
+     segmentOff(args, util) {
+        this._setSegParam('on', false, util);
     }
-    
 
-    ledsOff (args) {
+    segmentOn(args, util) {
+        this._setSegParam('on', true, util);
+    }
+
+    allOff (args) {
         sendData({
             on:false
         })
     }
 
-    ledsOn (args) {
+    allOn (args) {
         sendData({
             on:true
         })
+    }
+
+    setSegmentColor(args, util) {
+        const rgb = Cast.toRgbColorObject(args.COLOR);
+        this._setSegParam('col', [	
+            [rgb.r, rgb.g, rgb.b]	
+          ], util);
+    }
+
+    selectLedEffect (args, util) {
+        this._setSegParam('fx', args.FX_NAME, util);
     }
 
     selectLedSegment (args, util) {
@@ -247,6 +431,7 @@ class Scratch3NewBlocks {
         state.segment = args.SEGMENT_NAME;
         target.setCustomState(Scratch3NewBlocks.STATE_KEY, state);
     }
+    
 }
 
 module.exports = Scratch3NewBlocks;
