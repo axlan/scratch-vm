@@ -196,7 +196,7 @@ function initDisplay() {
     });
 }
 
-class Scratch3NewBlocks {
+class Scratch3Wled {
     constructor (runtime) {
         this.runtime = runtime;
 
@@ -208,7 +208,7 @@ class Scratch3NewBlocks {
     }
 
     /**
-     * The key to load & store a target's pen-related state.
+     * The key to load & store a target's state.
      * @type {string}
      */
     static get STATE_KEY () {
@@ -216,22 +216,22 @@ class Scratch3NewBlocks {
     }
 
     /**
-     * @param {Target} target - collect pen state for this target. Probably, but not necessarily, a RenderedTarget.
-     * @returns {PenState} the mutable pen state associated with that target. This will be created if necessary.
+     * @param {Target} target - collect state for this target. Probably, but not necessarily, a RenderedTarget.
+     * @returns {state} the mutable state associated with that target. This will be created if necessary.
      * @private
      */
     _getState (target) {
-        let state = target.getCustomState(Scratch3NewBlocks.STATE_KEY);
+        let state = target.getCustomState(Scratch3Wled.STATE_KEY);
         if (!state) {
             state = {segment: Object.keys(SEGMENTS)[0]};
-            target.setCustomState(Scratch3NewBlocks.STATE_KEY, state);
+            target.setCustomState(Scratch3Wled.STATE_KEY, state);
         }
         return state;
     }
     
 
     /**
-     * Initialize color parameters menu with localized strings
+     * Initialize segment parameters menu with localized strings
      * @returns {array} of the localized text and values for each menu element
      * @private
      */
@@ -258,7 +258,7 @@ class Scratch3NewBlocks {
     }
 
     /**
-     * When a pen-using Target is cloned, clone the pen state.
+     * When a wled-using Target is cloned, clone the wled state.
      * @param {Target} newTarget - the newly created target.
      * @param {Target} [sourceTarget] - the target used as a source for the new clone, if any.
      * @listens Runtime#event:targetWasCreated
@@ -266,9 +266,9 @@ class Scratch3NewBlocks {
      */
     _onTargetCreated (newTarget, sourceTarget) {
         if (sourceTarget) {
-            const state = sourceTarget.getCustomState(Scratch3NewBlocks.STATE_KEY);
+            const state = sourceTarget.getCustomState(Scratch3Wled.STATE_KEY);
             if (state) {
-                newTarget.setCustomState(Scratch3NewBlocks.STATE_KEY, Clone.simple(state));
+                newTarget.setCustomState(Scratch3Wled.STATE_KEY, Clone.simple(state));
             }
         }
     }
@@ -276,20 +276,9 @@ class Scratch3NewBlocks {
 
     getInfo () {
         return {
-            id: 'newblocks',
-            name: 'New Blocks',
+            id: 'wled',
+            name: 'WLED Controls',
             blocks: [
-                {
-                    opcode: 'writeLog',
-                    blockType: BlockType.COMMAND,
-                    text: 'log [TEXT]',
-                    arguments: {
-                        TEXT: {
-                            type: ArgumentType.STRING,
-                            defaultValue: "hello"
-                        }
-                    }
-                },
                 {
                     opcode: 'allOff',
                     blockType: BlockType.COMMAND,
@@ -319,7 +308,7 @@ class Scratch3NewBlocks {
                         }
                     },
                     text: formatMessage({
-                        id: 'newblocks.setLedColor',
+                        id: 'wled.setLedColor',
                         default: 'set LED color to [COLOR]',
                         description: 'set the LED color to a particular (RGB) value'
                     }),
@@ -335,7 +324,7 @@ class Scratch3NewBlocks {
                         },
                     },
                     text: formatMessage({
-                        id: 'newblocks.selectLedSegment',
+                        id: 'wled.selectLedSegment',
                         default: 'control [SEGMENT_NAME] segment',
                         description: 'select the LED segment to control'
                     }),
@@ -351,7 +340,7 @@ class Scratch3NewBlocks {
                         },
                     },
                     text: formatMessage({
-                        id: 'newblocks.selectLedFx',
+                        id: 'wled.selectLedFx',
                         default: 'show the [FX_NAME] effect',
                         description: 'select the effect for the LED segment'
                     }),
@@ -370,11 +359,6 @@ class Scratch3NewBlocks {
         };
     }
 
-    writeLog (args) {
-        const text = Cast.toString(args.TEXT);
-        log.log(text);
-    }
-
     _setSegParam(param, val, util) {
         const target = util.target;
         var state = this._getState(target);
@@ -387,13 +371,6 @@ class Scratch3NewBlocks {
         sendData(data);
     }
 
-    /**
-     * The pen "set pen color to {color}" block sets the pen to a particular RGB color.
-     * The transparency is reset to 0.
-     * @param {object} args - the block arguments.
-     *  @property {int} COLOR - the color to set, expressed as a 24-bit RGB value (0xRRGGBB).
-     * @param {object} util - utility object provided by the runtime.
-     */
      segmentOff(args, util) {
         this._setSegParam('on', false, util);
     }
@@ -429,9 +406,9 @@ class Scratch3NewBlocks {
         const target = util.target;
         var state = this._getState(target);
         state.segment = args.SEGMENT_NAME;
-        target.setCustomState(Scratch3NewBlocks.STATE_KEY, state);
+        target.setCustomState(Scratch3Wled.STATE_KEY, state);
     }
     
 }
 
-module.exports = Scratch3NewBlocks;
+module.exports = Scratch3Wled;
